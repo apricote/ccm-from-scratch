@@ -1,15 +1,19 @@
 package ccm
 
 import (
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"io"
 	cloudprovider "k8s.io/cloud-provider"
+	"os"
 )
 
 const (
 	providerName = "hcloud-from-scratch"
 )
 
-type CloudProvider struct{}
+type CloudProvider struct {
+	client *hcloud.Client
+}
 
 func (c CloudProvider) Initialize(_ cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {}
 
@@ -22,7 +26,9 @@ func (c CloudProvider) Instances() (cloudprovider.Instances, bool) {
 }
 
 func (c CloudProvider) InstancesV2() (cloudprovider.InstancesV2, bool) {
-	return InstancesV2{}, true
+	return InstancesV2{
+		client: c.client,
+	}, true
 }
 
 func (c CloudProvider) Zones() (cloudprovider.Zones, bool) {
@@ -46,7 +52,9 @@ func (c CloudProvider) HasClusterID() bool {
 }
 
 func newCloud(_ io.Reader) (cloudprovider.Interface, error) {
-	return CloudProvider{}, nil
+	client := hcloud.NewClient(hcloud.WithToken(os.Getenv("HCLOUD_TOKEN")))
+
+	return CloudProvider{client: client}, nil
 }
 
 func init() {
