@@ -2,13 +2,17 @@ package ccm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"k8s.io/api/core/v1"
 	cloudprovider "k8s.io/cloud-provider"
-	"k8s.io/klog/v2"
 	"strconv"
 	"strings"
+)
+
+var (
+	errServerNotFound = errors.New("server not found")
 )
 
 type InstancesV2 struct {
@@ -16,11 +20,25 @@ type InstancesV2 struct {
 }
 
 func (i InstancesV2) InstanceExists(ctx context.Context, node *v1.Node) (bool, error) {
+	_, err := i.getServerForNode(ctx, node)
+	if err != nil {
+		if errors.Is(err, errServerNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
 	return true, nil
 }
 
 func (i InstancesV2) InstanceShutdown(ctx context.Context, node *v1.Node) (bool, error) {
-	return false, nil
+	server, err := i.getServerForNode(ctx, node)
+	if err != nil {
+		return false, err
+	}
+
+	return server.Status != hcloud.ServerStatusRunning, nil
 }
 
 func (i InstancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*cloudprovider.InstanceMetadata, error) {
@@ -28,8 +46,6 @@ func (i InstancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clou
 	if err != nil {
 		return nil, err
 	}
-
-	klog.Warningf("Server: %+v", server)
 
 	return &cloudprovider.InstanceMetadata{
 		ProviderID:    fmt.Sprintf("%s://%d", providerName, server.ID),
@@ -67,7 +83,7 @@ func (i InstancesV2) getServerForNode(ctx context.Context, node *v1.Node) (*hclo
 	}
 
 	if server == nil {
-		return nil, fmt.Errorf("server not found")
+		return nil, errServerNotFound
 	}
 
 	return server, nil
