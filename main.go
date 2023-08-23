@@ -36,7 +36,7 @@ import (
 	_ "k8s.io/component-base/metrics/prometheus/clientgo" // load all the prometheus client-go plugins
 	_ "k8s.io/component-base/metrics/prometheus/version"  // for version metric registration
 	// For existing cloud providers, the option to import legacy providers is still available.
-	// e.g. _"k8s.io/legacy-cloud-providers/<provider>"
+	_ "github.com/apricote/ccm-from-scratch/ccm"
 )
 
 func main() {
