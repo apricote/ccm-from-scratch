@@ -15,6 +15,8 @@ var (
 	errServerNotFound = errors.New("server not found")
 )
 
+var _ cloudprovider.InstancesV2 = InstancesV2{}
+
 type InstancesV2 struct {
 	client *hcloud.Client
 }
@@ -60,14 +62,9 @@ func (i InstancesV2) getServerForNode(ctx context.Context, node *v1.Node) (*hclo
 	var server *hcloud.Server
 
 	if node.Spec.ProviderID != "" {
-		providerID, found := strings.CutPrefix(node.Spec.ProviderID, fmt.Sprintf("%s://", providerName))
-		if !found {
-			return nil, fmt.Errorf("ProviderID does not follow expected format: %s", node.Spec.ProviderID)
-		}
-
-		id, err := strconv.ParseInt(providerID, 10, 64)
+		id, err := getProviderID(node)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse ProviderID to integer: %w", err)
+			return nil, err
 		}
 
 		server, _, err = i.client.Server.GetByID(ctx, id)
@@ -87,6 +84,19 @@ func (i InstancesV2) getServerForNode(ctx context.Context, node *v1.Node) (*hclo
 	}
 
 	return server, nil
+}
+
+func getProviderID(node *v1.Node) (int64, error) {
+	providerID, found := strings.CutPrefix(node.Spec.ProviderID, fmt.Sprintf("%s://", providerName))
+	if !found {
+		return 0, fmt.Errorf("ProviderID does not follow expected format: %s", node.Spec.ProviderID)
+	}
+
+	id, err := strconv.ParseInt(providerID, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse ProviderID to integer: %w", err)
+	}
+	return id, nil
 }
 
 func getNodeAddresses(server *hcloud.Server) []v1.NodeAddress {

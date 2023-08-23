@@ -18,7 +18,7 @@ type CloudProvider struct {
 func (c CloudProvider) Initialize(_ cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {}
 
 func (c CloudProvider) LoadBalancer() (cloudprovider.LoadBalancer, bool) {
-	return nil, false
+	return LoadBalancer{client: c.client}, true
 }
 
 func (c CloudProvider) Instances() (cloudprovider.Instances, bool) {
@@ -26,9 +26,7 @@ func (c CloudProvider) Instances() (cloudprovider.Instances, bool) {
 }
 
 func (c CloudProvider) InstancesV2() (cloudprovider.InstancesV2, bool) {
-	return InstancesV2{
-		client: c.client,
-	}, true
+	return InstancesV2{client: c.client}, true
 }
 
 func (c CloudProvider) Zones() (cloudprovider.Zones, bool) {
