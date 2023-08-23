@@ -1,0 +1,37 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: ccm-from-scratch
+  namespace: kube-system
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ccm-from-scratch
+  template:
+    metadata:
+      labels:
+        app: ccm-from-scratch
+    spec:
+      serviceAccountName: cloud-controller-manager
+      tolerations:
+        - effect: NoSchedule
+          key: node.cloudprovider.kubernetes.io/uninitialized
+          operator: Equal
+
+      containers:
+        - name: ccm-from-scratch
+          image: apricote/ccm-from-scratch-2e27e80364c4d72c4bcfa55ce828a55b:latest
+          args:
+            - --cloud-provider=hcloud-from-scratch
+            - --allow-untagged-cloud
+          env:
+            - name: HCLOUD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: token
+                  name: hcloud
+
+
+
