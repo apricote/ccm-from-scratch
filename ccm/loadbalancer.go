@@ -12,18 +12,26 @@ type LoadBalancer struct {
 }
 
 func (l LoadBalancer) GetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (status *v1.LoadBalancerStatus, exists bool, err error) {
-	//TODO implement me
-	panic("implement me")
+	lbName := getLBName(clusterName, service)
+	lb, _, err := l.client.LoadBalancer.GetByName(ctx, lbName)
+	if err != nil {
+		return nil, false, fmt.Errorf("unable to check for existing loadbalancer: %w", err)
+	}
+
+	if lb == nil {
+		return nil, false, nil
+	}
+
+	return getLBStatus(lb), true, nil
 }
 
 func (l LoadBalancer) GetLoadBalancerName(ctx context.Context, clusterName string, service *v1.Service) string {
-	//TODO implement me
-	panic("implement me")
+	return getLBName(clusterName, service)
 }
 
 func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) (*v1.LoadBalancerStatus, error) {
 	// Get existing LoadBalancer
-	lbName := clusterName + service.Name // TODO Add Namespace
+	lbName := getLBName(clusterName, service)
 	lb, _, err := l.client.LoadBalancer.GetByName(ctx, lbName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to check for existing loadbalancer: %w", err)
@@ -52,7 +60,7 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 				foundExistingService = true
 				// Match
 				if svc.DestinationPort != int(port.NodePort) {
-					_, _, err := l.client.LoadBalancer.UpdateService(ctx, lb, svc.ListenPort, hcloud.LoadBalancerUpdateServiceOpts{
+					_, _, err = l.client.LoadBalancer.UpdateService(ctx, lb, svc.ListenPort, hcloud.LoadBalancerUpdateServiceOpts{
 						Protocol:        hcloud.LoadBalancerServiceProtocolTCP,
 						DestinationPort: hcloud.Ptr(int(port.NodePort)),
 					})
@@ -66,7 +74,7 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 
 		if !foundExistingService {
 			// No existing service found
-			_, _, err := l.client.LoadBalancer.AddService(ctx, lb, hcloud.LoadBalancerAddServiceOpts{
+			_, _, err = l.client.LoadBalancer.AddService(ctx, lb, hcloud.LoadBalancerAddServiceOpts{
 				Protocol:        hcloud.LoadBalancerServiceProtocolTCP,
 				ListenPort:      hcloud.Ptr(int(port.Port)),
 				DestinationPort: hcloud.Ptr(int(port.NodePort)),
@@ -80,6 +88,15 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 
 	// TODO: Clean up LB Services that do not belong to any service ports.
 
+	status, err := l.updateLBTargets(ctx, nodes, lb)
+	if err != nil {
+		return status, err
+	}
+
+	return getLBStatus(lb), nil
+}
+
+func (l LoadBalancer) updateLBTargets(ctx context.Context, nodes []*v1.Node, lb *hcloud.LoadBalancer) (*v1.LoadBalancerStatus, error) {
 	// Check the targets
 	// Create missing hcloud lb targets
 	for _, node := range nodes {
@@ -110,8 +127,11 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 	}
 
 	// TODO: Clean up LB Targets that do not belong to any nodes targeted.
+	return nil, nil
+}
 
-	return &v1.LoadBalancerStatus{
+func getLBStatus(lb *hcloud.LoadBalancer) *v1.LoadBalancerStatus {
+	lbStatus := &v1.LoadBalancerStatus{
 		Ingress: []v1.LoadBalancerIngress{
 			{
 				IP:       lb.PublicNet.IPv4.IP.String(),
@@ -121,15 +141,48 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 				IP:       lb.PublicNet.IPv6.IP.String(),
 				Hostname: lb.PublicNet.IPv6.DNSPtr,
 			}},
-	}, nil
+	}
+	return lbStatus
+}
+
+func getLBName(clusterName string, service *v1.Service) string {
+	return fmt.Sprintf("%s-%s-%s", clusterName, service.Namespace, service.Name)
 }
 
 func (l LoadBalancer) UpdateLoadBalancer(ctx context.Context, clusterName string, service *v1.Service, nodes []*v1.Node) error {
-	//TODO implement me
-	panic("implement me")
+	// Get existing LoadBalancer
+	lbName := getLBName(clusterName, service)
+	lb, _, err := l.client.LoadBalancer.GetByName(ctx, lbName)
+	if err != nil {
+		return fmt.Errorf("unable to check for existing loadbalancer: %w", err)
+	}
+
+	if lb == nil {
+		return fmt.Errorf("no existing loadbalancer found")
+	}
+
+	if _, err = l.updateLBTargets(ctx, nodes, lb); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (l LoadBalancer) EnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
-	//TODO implement me
-	panic("implement me")
+	// Get existing LoadBalancer
+	lbName := getLBName(clusterName, service)
+	lb, _, err := l.client.LoadBalancer.GetByName(ctx, lbName)
+	if err != nil {
+		return fmt.Errorf("unable to check for existing loadbalancer: %w", err)
+	}
+
+	if lb == nil {
+		return nil
+	}
+
+	_, err = l.client.LoadBalancer.Delete(ctx, lb)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
