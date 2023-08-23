@@ -52,7 +52,16 @@ func (c CloudProvider) HasClusterID() bool {
 }
 
 func newCloud(_ io.Reader) (cloudprovider.Interface, error) {
-	client := hcloud.NewClient(hcloud.WithToken(os.Getenv("HCLOUD_TOKEN")))
+	options := []hcloud.ClientOption{
+		hcloud.WithToken(os.Getenv("HCLOUD_TOKEN")),
+		hcloud.WithApplication("ccm-from-scratch", ""),
+	}
+
+	if os.Getenv("HCLOUD_DEBUG") != "" {
+		options = append(options, hcloud.WithDebugWriter(os.Stderr))
+	}
+
+	client := hcloud.NewClient(options...)
 
 	return CloudProvider{client: client}, nil
 }
