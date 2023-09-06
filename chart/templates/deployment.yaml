@@ -3,7 +3,6 @@ apiVersion: apps/v1
 metadata:
   name: ccm-from-scratch
   namespace: kube-system
-
 spec:
   replicas: 1
   selector:

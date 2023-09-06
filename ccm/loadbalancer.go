@@ -48,7 +48,17 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 			return nil, fmt.Errorf("unable to create new loadbalancer: %w", err)
 		}
 
-		lb = result.LoadBalancer
+		// Wait for IP to be set
+		_, errCh := l.client.Action.WatchProgress(ctx, result.Action)
+		err = <-errCh
+		if err != nil {
+			return nil, fmt.Errorf("unable to start new loadbalancer: %w", err)
+		}
+
+		lb, _, err = l.client.LoadBalancer.GetByID(ctx, result.LoadBalancer.ID)
+		if err != nil {
+			return nil, fmt.Errorf("unable to refresh new loadbalancer: %w", err)
+		}
 	}
 
 	// Check the services
@@ -131,17 +141,22 @@ func (l LoadBalancer) updateLBTargets(ctx context.Context, nodes []*v1.Node, lb 
 }
 
 func getLBStatus(lb *hcloud.LoadBalancer) *v1.LoadBalancerStatus {
-	lbStatus := &v1.LoadBalancerStatus{
-		Ingress: []v1.LoadBalancerIngress{
-			{
-				IP:       lb.PublicNet.IPv4.IP.String(),
-				Hostname: lb.PublicNet.IPv4.DNSPtr,
-			},
-			{
-				IP:       lb.PublicNet.IPv6.IP.String(),
-				Hostname: lb.PublicNet.IPv6.DNSPtr,
-			}},
+	lbStatus := &v1.LoadBalancerStatus{Ingress: []v1.LoadBalancerIngress{}}
+
+	if lb.PublicNet.IPv4.IP != nil && !lb.PublicNet.IPv4.IP.IsUnspecified() {
+		lbStatus.Ingress = append(lbStatus.Ingress, v1.LoadBalancerIngress{
+			IP:       lb.PublicNet.IPv4.IP.String(),
+			Hostname: lb.PublicNet.IPv4.DNSPtr,
+		})
 	}
+
+	if lb.PublicNet.IPv6.IP != nil && !lb.PublicNet.IPv6.IP.IsUnspecified() {
+		lbStatus.Ingress = append(lbStatus.Ingress, v1.LoadBalancerIngress{
+			IP:       lb.PublicNet.IPv6.IP.String(),
+			Hostname: lb.PublicNet.IPv6.DNSPtr,
+		})
+	}
+
 	return lbStatus
 }
 
