@@ -93,10 +93,24 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 				return nil, err
 			}
 		}
-
 	}
 
-	// TODO: Clean up LB Services that do not belong to any service ports.
+	// Cleanup services in hetzner cloud api that we no longer need
+serviceLoop:
+	for _, svc := range lb.Services {
+		for _, port := range service.Spec.Ports {
+			if svc.ListenPort == int(port.Port) {
+				// Found a match
+				continue serviceLoop
+			}
+		}
+
+		// Havent found a match
+		_, _, err = l.client.LoadBalancer.DeleteService(ctx, lb, svc.ListenPort)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	status, err := l.updateLBTargets(ctx, nodes, lb)
 	if err != nil {
@@ -136,7 +150,28 @@ func (l LoadBalancer) updateLBTargets(ctx context.Context, nodes []*v1.Node, lb 
 		}
 	}
 
-	// TODO: Clean up LB Targets that do not belong to any nodes targeted.
+	// Cleanup targets in hetzner cloud api that we no longer need
+targetLoop:
+	for _, target := range lb.Targets {
+		for _, node := range nodes {
+			providerID, err := getProviderID(node)
+			if err != nil {
+				return nil, err
+			}
+
+			if target.Server.Server.ID == providerID {
+				// Found a match
+				continue targetLoop
+			}
+		}
+
+		// Havent found a match
+		_, _, err := l.client.LoadBalancer.RemoveServerTarget(ctx, lb, target.Server.Server)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return nil, nil
 }
 
