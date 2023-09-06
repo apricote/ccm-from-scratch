@@ -5,6 +5,7 @@ import (
 	"io"
 	cloudprovider "k8s.io/cloud-provider"
 	"os"
+	"strconv"
 )
 
 const (
@@ -12,7 +13,8 @@ const (
 )
 
 type CloudProvider struct {
-	client *hcloud.Client
+	client    *hcloud.Client
+	networkID int64
 }
 
 func (c CloudProvider) Initialize(_ cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {}
@@ -26,7 +28,7 @@ func (c CloudProvider) Instances() (cloudprovider.Instances, bool) {
 }
 
 func (c CloudProvider) InstancesV2() (cloudprovider.InstancesV2, bool) {
-	return InstancesV2{client: c.client}, true
+	return InstancesV2{client: c.client, networkID: c.networkID}, true
 }
 
 func (c CloudProvider) Zones() (cloudprovider.Zones, bool) {
@@ -61,7 +63,12 @@ func newCloud(_ io.Reader) (cloudprovider.Interface, error) {
 
 	client := hcloud.NewClient(options...)
 
-	return CloudProvider{client: client}, nil
+	networkID, err := strconv.ParseInt(os.Getenv("HCLOUD_NETWORK"), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return CloudProvider{client: client, networkID: networkID}, nil
 }
 
 func init() {

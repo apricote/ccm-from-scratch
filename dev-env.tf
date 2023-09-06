@@ -57,12 +57,30 @@ resource "hcloud_ssh_key" "default" {
   public_key = tls_private_key.ssh.public_key_openssh
 }
 
+resource "hcloud_network" "cluster" {
+  name = "ccm-from-scratch"
+  ip_range = "10.0.0.0/8"
+}
+
+resource "hcloud_network_subnet" "cluster" {
+  ip_range     = "10.0.0.0/24"
+  network_id   = hcloud_network.cluster.id
+  network_zone = "eu-central"
+  type         = "cloud"
+}
+
 resource "hcloud_server" "cp" {
   name        = "ccm-from-scratch-control"
   server_type = "cpx11"
   location    = "fsn1"
   image       = "ubuntu-22.04"
   ssh_keys    = [hcloud_ssh_key.default.id]
+
+  network {
+    network_id = hcloud_network.cluster.id
+    alias_ips = []
+  }
+  depends_on = [hcloud_network_subnet.cluster]
 
   connection {
     host        = self.ipv4_address
@@ -96,6 +114,12 @@ resource "hcloud_server" "worker" {
   location    = "fsn1"
   image       = "ubuntu-22.04"
   ssh_keys    = [hcloud_ssh_key.default.id]
+
+  network {
+    network_id = hcloud_network.cluster.id
+    alias_ips = []
+  }
+  depends_on = [hcloud_network_subnet.cluster]
 
   connection {
     host        = self.ipv4_address
@@ -148,6 +172,7 @@ resource "kubernetes_secret_v1" "hcloud_token" {
 
   data = {
     token = var.hcloud_token
+    network = hcloud_network.cluster.id
   }
 
   depends_on = [hcloud_server.cp]

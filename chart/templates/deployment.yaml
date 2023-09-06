@@ -32,6 +32,10 @@ spec:
                 secretKeyRef:
                   key: token
                   name: hcloud
-
+            - name: HCLOUD_NETWORK
+              valueFrom:
+                secretKeyRef:
+                  key: network
+                  name: hcloud
 
 

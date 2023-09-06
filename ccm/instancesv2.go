@@ -18,7 +18,8 @@ var (
 var _ cloudprovider.InstancesV2 = InstancesV2{}
 
 type InstancesV2 struct {
-	client *hcloud.Client
+	client    *hcloud.Client
+	networkID int64
 }
 
 func (i InstancesV2) InstanceExists(ctx context.Context, node *v1.Node) (bool, error) {
@@ -52,7 +53,7 @@ func (i InstancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clou
 	return &cloudprovider.InstanceMetadata{
 		ProviderID:    fmt.Sprintf("%s://%d", providerName, server.ID),
 		InstanceType:  server.ServerType.Name,
-		NodeAddresses: getNodeAddresses(server),
+		NodeAddresses: getNodeAddresses(server, i.networkID),
 		Zone:          server.Datacenter.Location.Name,
 		Region:        string(server.Datacenter.Location.NetworkZone),
 	}, nil
@@ -99,7 +100,7 @@ func getProviderID(node *v1.Node) (int64, error) {
 	return id, nil
 }
 
-func getNodeAddresses(server *hcloud.Server) []v1.NodeAddress {
+func getNodeAddresses(server *hcloud.Server, networkID int64) []v1.NodeAddress {
 	addresses := []v1.NodeAddress{
 		{
 			Type:    v1.NodeHostName,
@@ -119,6 +120,19 @@ func getNodeAddresses(server *hcloud.Server) []v1.NodeAddress {
 			Type:    v1.NodeExternalIP,
 			Address: server.PublicNet.IPv6.IP.String(),
 		})
+	}
+
+	for _, privNet := range server.PrivateNet {
+		if privNet.Network.ID != networkID {
+			continue
+		}
+
+		if !privNet.IP.IsUnspecified() {
+			addresses = append(addresses, v1.NodeAddress{
+				Type:    v1.NodeInternalIP,
+				Address: privNet.IP.String(),
+			})
+		}
 	}
 
 	return addresses
