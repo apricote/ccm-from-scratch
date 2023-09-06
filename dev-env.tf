@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/helm"
       version = "2.11.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "2.23.0"
+    }
   }
 }
 
@@ -132,6 +136,25 @@ resource "helm_release" "cilium" {
   depends_on = [hcloud_server.cp]
 }
 
+provider "kubernetes" {
+  config_path = local.kubeconfig_path
+}
+
+resource "kubernetes_secret_v1" "hcloud_token" {
+  metadata {
+    name      = "hcloud"
+    namespace = "kube-system"
+  }
+
+  data = {
+    token = var.hcloud_token
+  }
+
+  depends_on = [hcloud_server.cp]
+}
+
 output "kubeconfig" {
   value = "export KUBECONFIG=${local.kubeconfig_path}"
 }
+
+

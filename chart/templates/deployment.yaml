@@ -18,7 +18,7 @@ spec:
       tolerations:
         - effect: NoSchedule
           key: node.cloudprovider.kubernetes.io/uninitialized
-          operator: Equal
+          operator: Exists
 
       containers:
         - name: ccm-from-scratch
@@ -26,6 +26,7 @@ spec:
           args:
             - --cloud-provider=hcloud-from-scratch
             - --allow-untagged-cloud
+            - --leader-elect=false
           env:
             - name: HCLOUD_TOKEN
               valueFrom:
