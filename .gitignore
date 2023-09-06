@@ -1,1 +1,8 @@
 kubeconfig.yaml
+
+# Terraform
+credentials.auto.tfvars
+.terraform
+.dev-env.ssh
+terraform.tfstate
+terraform.tfstate.backup
