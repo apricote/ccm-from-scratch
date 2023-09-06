@@ -8,7 +8,8 @@ import (
 )
 
 type LoadBalancer struct {
-	client *hcloud.Client
+	client    *hcloud.Client
+	networkID int64
 }
 
 func (l LoadBalancer) GetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (status *v1.LoadBalancerStatus, exists bool, err error) {
@@ -25,7 +26,7 @@ func (l LoadBalancer) GetLoadBalancer(ctx context.Context, clusterName string, s
 	return getLBStatus(lb), true, nil
 }
 
-func (l LoadBalancer) GetLoadBalancerName(ctx context.Context, clusterName string, service *v1.Service) string {
+func (l LoadBalancer) GetLoadBalancerName(_ context.Context, clusterName string, service *v1.Service) string {
 	return getLBName(clusterName, service)
 }
 
@@ -43,6 +44,7 @@ func (l LoadBalancer) EnsureLoadBalancer(ctx context.Context, clusterName string
 			Name:             lbName,
 			LoadBalancerType: &hcloud.LoadBalancerType{ID: 1, Name: "lb11"},
 			Location:         &hcloud.Location{ID: 1, Name: "fsn1"},
+			Network:          &hcloud.Network{ID: l.networkID},
 		})
 		if err != nil {
 			return nil, fmt.Errorf("unable to create new loadbalancer: %w", err)
@@ -143,6 +145,7 @@ func (l LoadBalancer) updateLBTargets(ctx context.Context, nodes []*v1.Node, lb 
 				Server: &hcloud.Server{
 					ID: providerID,
 				},
+				UsePrivateIP: hcloud.Ptr(true),
 			})
 			if err != nil {
 				return nil, err

@@ -100,7 +100,7 @@ resource "hcloud_server" "cp" {
         --print-config=false \
         --ip "${self.ipv4_address}" \
         --k3s-channel stable \
-        --k3s-extra-args "--disable-cloud-controller --cluster-cidr 10.244.0.0/16 --kubelet-arg cloud-provider=external --disable=traefik --disable=servicelb --flannel-backend=none --disable=local-storage --node-external-ip ${self.ipv4_address}" \
+        --k3s-extra-args "--disable-cloud-controller --cluster-cidr 10.244.0.0/16 --kubelet-arg cloud-provider=external --disable=traefik --disable=servicelb --flannel-backend=none --disable=local-storage --node-external-ip ${self.ipv4_address} --node-ip ${tolist(self.network).0.ip}" \
         --local-path "${local.kubeconfig_path}"
     EOT
   }
@@ -139,7 +139,7 @@ resource "hcloud_server" "worker" {
         --server-ip "${hcloud_server.cp.ipv4_address}" \
         --ip "${self.ipv4_address}" \
         --k3s-channel stable \
-        --k3s-extra-args "--kubelet-arg cloud-provider=external --node-external-ip ${self.ipv4_address}"
+        --k3s-extra-args "--kubelet-arg cloud-provider=external --node-external-ip ${self.ipv4_address} --node-ip ${tolist(self.network).0.ip}"
     EOT
   }
 }
@@ -156,6 +156,11 @@ resource "helm_release" "cilium" {
   repository = "https://helm.cilium.io"
   namespace  = "kube-system"
   version    = "1.13.1"
+
+  set {
+    name  = "ipam.mode"
+    value = "kubernetes"
+  }
 
   depends_on = [hcloud_server.cp]
 }

@@ -20,7 +20,7 @@ type CloudProvider struct {
 func (c CloudProvider) Initialize(_ cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {}
 
 func (c CloudProvider) LoadBalancer() (cloudprovider.LoadBalancer, bool) {
-	return LoadBalancer{client: c.client}, true
+	return LoadBalancer{client: c.client, networkID: c.networkID}, true
 }
 
 func (c CloudProvider) Instances() (cloudprovider.Instances, bool) {
