@@ -4,5 +4,5 @@ set -ueo pipefail
 export KUBECONFIG=./kubeconfig.yaml
 
 terraform init
-terraform apply -auto-approve
+terraform apply -var "hcloud_token=$HCLOUD_TOKEN" -auto-approve
 skaffold run

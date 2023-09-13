@@ -1,0 +1,30 @@
+on:
+  push:
+
+name: e2e
+
+jobs:
+  e2e:
+    permissions:
+      # This is required so the pipeline can generate an oauth token.
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: hetznercloud/tps-action@main
+      - uses: hashicorp/setup-terraform@v2
+      - uses: yokawasa/action-setup-kube-tools@v0.9.3
+        with:
+          setup-tools: |
+            skaffold
+          skaffold: v2.6.3
+      - run: curl -sLS https://get.k3sup.dev | sh
+      - uses: actions/checkout@v4
+
+      - run: hack/ci-setup-env.sh
+      - run: hack/ci-run-e2e-tests.sh
+      - run: hack/ci-teardown-env.sh
+        if: ${{ always() }} # Also cleanup if setup or tests failed
+        continue-on-error: true # Tests can still be successful if cleanup fails
+
+
