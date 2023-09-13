@@ -40,7 +40,10 @@ func (c CloudProvider) Clusters() (cloudprovider.Clusters, bool) {
 }
 
 func (c CloudProvider) Routes() (cloudprovider.Routes, bool) {
-	return nil, false
+	return &Routes{
+		client:    c.client,
+		networkID: c.networkID,
+	}, true
 }
 
 func (c CloudProvider) ProviderName() string {

@@ -40,6 +40,7 @@ variable "node_count" {
 
 locals {
   kubeconfig_path = "${path.module}/kubeconfig.yaml"
+  cluster_cidr = "10.244.0.0/16"
 }
 
 resource "tls_private_key" "ssh" {
@@ -100,7 +101,7 @@ resource "hcloud_server" "cp" {
         --print-config=false \
         --ip "${self.ipv4_address}" \
         --k3s-channel stable \
-        --k3s-extra-args "--disable-cloud-controller --cluster-cidr 10.244.0.0/16 --kubelet-arg cloud-provider=external --disable=traefik --disable=servicelb --flannel-backend=none --disable=local-storage --node-external-ip ${self.ipv4_address} --node-ip ${tolist(self.network).0.ip}" \
+        --k3s-extra-args "--disable-cloud-controller --cluster-cidr ${local.cluster_cidr} --kubelet-arg cloud-provider=external --disable=traefik --disable=servicelb --flannel-backend=none --disable=local-storage --node-external-ip ${self.ipv4_address} --node-ip ${tolist(self.network).0.ip}" \
         --local-path "${local.kubeconfig_path}"
     EOT
   }
@@ -162,7 +163,15 @@ resource "helm_release" "cilium" {
     value = "kubernetes"
   }
 
-  depends_on = [hcloud_server.cp]
+  // For Routes
+  set {
+    name  = "tunnel"
+    value = "disabled"
+  }
+  set {
+    name = "ipv4NativeRoutingCIDR"
+    value = local.cluster_cidr
+  }
 }
 
 provider "kubernetes" {

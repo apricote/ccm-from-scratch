@@ -13,6 +13,7 @@ spec:
       labels:
         app: ccm-from-scratch
     spec:
+      hostNetwork: true
       serviceAccountName: cloud-controller-manager
       tolerations:
         - effect: NoSchedule
@@ -26,6 +27,7 @@ spec:
             - --cloud-provider=hcloud-from-scratch
             - --allow-untagged-cloud
             - --leader-elect=false
+            - --cluster-cidr={{ .Values.clusterCIDR }}
           env:
             - name: HCLOUD_TOKEN
               valueFrom:
