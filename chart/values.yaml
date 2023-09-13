@@ -9,3 +9,5 @@ image:
   tag: ""
 
 clusterCIDR: 10.244.0.0/16
+
+debug: false

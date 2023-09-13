@@ -12,3 +12,6 @@ manifests:
       - name: ccm-from-scratch
         chartPath: chart
         namespace: kube-system
+
+        setValues:
+          debug: false

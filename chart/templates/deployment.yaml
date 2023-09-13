@@ -40,4 +40,9 @@ spec:
                   key: network
                   name: hcloud
 
+            {{- if .Values.debug }}
+            - name: HCLOUD_DEBUG
+              value: "true"
+            {{- end }}
+
 
