@@ -5,7 +5,9 @@ metadata:
 build:
   artifacts:
     - image: apricote/ccm-from-scratch-2e27e80364c4d72c4bcfa55ce828a55b
-      ko: {}
+      ko:
+        labels:
+          org.opencontainers.image.source: https://github.com/apricote/ccm-from-scratch
 manifests:
   helm:
     releases:
