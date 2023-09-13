@@ -33,7 +33,7 @@ variable "hcloud_token" {
   sensitive = true
 }
 
-variable "node_count" {
+variable "worker_count" {
   type    = number
   default = 1
 }
@@ -108,7 +108,7 @@ resource "hcloud_server" "cp" {
 }
 
 resource "hcloud_server" "worker" {
-  count = var.node_count
+  count = var.worker_count
 
   name        = "ccm-from-scratch-worker-${count.index}"
   server_type = "cpx11"
@@ -145,9 +145,16 @@ resource "hcloud_server" "worker" {
   }
 }
 
+data "local_sensitive_file" "kubeconfig" {
+  # Kubeconfig is only written after control-plane finished
+  depends_on = [hcloud_server.cp]
+
+  filename = local.kubeconfig_path
+}
+
 provider "helm" {
   kubernetes {
-    config_path = local.kubeconfig_path
+    config_path = data.local_sensitive_file.kubeconfig.filename
   }
 }
 
@@ -175,7 +182,7 @@ resource "helm_release" "cilium" {
 }
 
 provider "kubernetes" {
-  config_path = local.kubeconfig_path
+  config_path = data.local_sensitive_file.kubeconfig.filename
 }
 
 resource "kubernetes_secret_v1" "hcloud_token" {
@@ -188,12 +195,10 @@ resource "kubernetes_secret_v1" "hcloud_token" {
     token = var.hcloud_token
     network = hcloud_network.cluster.id
   }
-
-  depends_on = [hcloud_server.cp]
 }
 
 output "kubeconfig" {
-  value = "export KUBECONFIG=${local.kubeconfig_path}"
+  value = "export KUBECONFIG=${data.local_sensitive_file.kubeconfig.filename}"
 }
 
 
